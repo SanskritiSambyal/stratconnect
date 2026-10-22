@@ -32,16 +32,20 @@ def inject_css():
         --disp:'Fraunces',Georgia,serif; --mono:'Space Mono',monospace;
       }
  
-      /* base */
-      html, body, .stApp, [class*="st-"]{font-family:var(--ui);}
-      .stApp{background:var(--bg);}
-      .block-container{max-width:1060px;padding-top:1.4rem;padding-bottom:4rem;}
+      /* base — set font on the app root only; DON'T touch icon elements */
+      .stApp{background:var(--bg);font-family:var(--ui);}
+      .stApp p, .stApp label, .stApp li, .stApp input, .stApp textarea,
+      .stApp .stMarkdown, .stApp [data-testid="stWidgetLabel"]{font-family:var(--ui);}
+      .block-container{max-width:1060px;padding-top:1.2rem;padding-bottom:4rem;}
       h1,h2,h3{font-family:var(--disp)!important;letter-spacing:-.015em;color:var(--ink);font-weight:600;}
-      p,span,label,li,div{color:var(--ink);}
       a{color:var(--accent-ink);}
+      /* protect Material icon fonts so glyphs don't render as literal text */
+      [data-testid="stIconMaterial"], .material-icons, .material-symbols-outlined,
+      .material-symbols-rounded, span[class*="material-"], [data-testid*="Icon"] span{
+        font-family:'Material Symbols Rounded','Material Symbols Outlined','Material Icons'!important;}
       /* hide Streamlit chrome that reads as "default template" */
       #MainMenu, header[data-testid="stHeader"], footer{visibility:hidden;}
-      [data-testid="stHeaderActionElements"], [data-testid="stElementToolbar"]{display:none!important;}
+      [data-testid="stElementToolbar"]{display:none!important;}
       [data-testid="stHeading"] a, .stHeadingContainer a{display:none!important;}
  
       /* sidebar */
@@ -97,8 +101,17 @@ def inject_css():
       [data-testid="stExpander"] summary p{font-family:var(--disp);font-size:16px;font-weight:600;}
  
       /* bordered containers -> cards */
-      [data-testid="stVerticalBlockBorderWrapper"]:has(> div > [data-testid="stVerticalBlock"]){}
+      [data-testid="stVerticalBlockBorderWrapper"]{
+        background:var(--card);border:1px solid var(--line)!important;border-radius:18px;
+        padding:20px 22px;box-shadow:var(--sh);}
+      /* don't double-card: metrics & expanders inside a card stay flat-bordered (fine) */
       div[data-testid="stExpanderDetails"]{background:#fcfbf8;}
+ 
+      /* role chip + section headers */
+      .rolechip{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.04em;
+        color:var(--accent-ink);background:var(--accent-soft);border-radius:30px;padding:4px 12px;
+        white-space:nowrap;}
+      .sec-title{font-family:var(--disp);font-size:19px;font-weight:600;color:var(--ink);margin:0;}
  
       /* alerts softer */
       [data-testid="stAlert"]{border-radius:12px;border:1px solid var(--line);}
@@ -111,7 +124,7 @@ def inject_css():
         color:var(--accent-ink);font-weight:700;margin-bottom:2px;}
       .pill{font-family:var(--mono);font-size:11px;font-weight:700;padding:3px 10px;border-radius:30px;
         white-space:nowrap;display:inline-block;}
-      .sub{color:var(--muted);font-size:12.5px;}
+      .sub{color:var(--muted);font-size:12.5px;overflow-wrap:anywhere;}
       .next-over{color:var(--crit-fg);font-weight:700;font-family:var(--mono);font-size:12px;}
       .next{color:var(--muted);font-family:var(--mono);font-size:12px;}
       .barwrap{background:var(--line-2);border-radius:30px;height:9px;overflow:hidden;}
@@ -137,14 +150,16 @@ def show_flash():
  
  
 def header(user=None):
-    c1, c2 = st.columns([3, 1])
-    with c1:
-        st.markdown(f'<div class="scx-brand">StratConnect<span class="d">.</span></div>'
-                    f'<div class="scx-kick">{ORG_NAME}</div>', unsafe_allow_html=True)
-    with c2:
-        if user:
-            st.markdown(f'<div style="text-align:right" class="sub">{user["email"]}<br>'
-                        f'<b>{user["role"].title()}</b></div>', unsafe_allow_html=True)
+    chip = f'<span class="rolechip">{user["role"].title()}</span>' if user else ""
+    st.markdown(
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:14px;'
+        'flex-wrap:wrap;margin-bottom:6px">'
+        '<div style="min-width:0">'
+        '<div class="scx-brand">StratConnect<span class="d">.</span></div>'
+        f'<div class="scx-kick">{ORG_NAME}</div>'
+        '</div>'
+        f'<div>{chip}</div>'
+        '</div>', unsafe_allow_html=True)
  
  
 def pill(status):
@@ -239,47 +254,49 @@ def tracker_view(user):
     k3.metric("In conversation", live)
     k4.metric("Confirmed", confirmed)
  
-    st.divider()
+    st.write("")
  
-    # pipeline breakdown
-    st.markdown('<div class="scx-eyebrow">Pipeline</div>', unsafe_allow_html=True)
+    # pipeline + export card
     counts = {s: 0 for s in OPTIONS["status"]}
     for c in contacts:
         if c.get("status") in counts:
             counts[c["status"]] += 1
-    shown = [(s, n) for s, n in counts.items() if n]
-    if shown:
-        mx = max(n for _, n in shown)
-        for s, n in shown:
-            a, b, cc = st.columns([2, 5, 1])
-            a.markdown(pill(s), unsafe_allow_html=True)
-            b.markdown(f'<div class="barwrap" style="margin-top:6px"><span style="width:{int(n/mx*100)}%"></span></div>',
-                       unsafe_allow_html=True)
-            cc.markdown(f'<div style="text-align:right;font-family:Space Mono,monospace;font-weight:700">{n}</div>',
-                        unsafe_allow_html=True)
-    else:
-        st.caption("No contacts yet — the pipeline fills in as you add them.")
+    with st.container(border=True):
+        st.markdown('<div class="scx-eyebrow">Pipeline</div>', unsafe_allow_html=True)
+        shown = [(s, n) for s, n in counts.items() if n]
+        if shown:
+            mx = max(n for _, n in shown)
+            for s, n in shown:
+                a, b, cc = st.columns([2, 5, 1])
+                a.markdown(pill(s), unsafe_allow_html=True)
+                b.markdown(f'<div class="barwrap" style="margin-top:7px"><span style="width:{int(n/mx*100)}%"></span></div>',
+                           unsafe_allow_html=True)
+                cc.markdown(f'<div style="text-align:right;font-family:Space Mono,monospace;font-weight:700">{n}</div>',
+                            unsafe_allow_html=True)
+        else:
+            st.caption("No contacts yet — the pipeline fills in as you add them.")
+        st.write("")
+        ex1, ex2 = st.columns([1, 2])
+        with ex1:
+            if contacts:
+                df = _export_df(contacts)
+                st.download_button("⬇  Download CSV", df.to_csv(index=False).encode("utf-8"),
+                                   file_name="stratconnect-contacts.csv", mime="text/csv",
+                                   use_container_width=True)
+        with ex2:
+            url = storage.sheet_url()
+            if url:
+                st.markdown(f'<div style="padding-top:8px"><a href="{url}" target="_blank">↗ Open the live Google Sheet</a></div>',
+                            unsafe_allow_html=True)
  
-    # export
-    ex1, ex2 = st.columns([1, 3])
-    with ex1:
-        if contacts:
-            df = _export_df(contacts)
-            st.download_button("Download CSV", df.to_csv(index=False).encode("utf-8"),
-                               file_name="stratconnect-contacts.csv", mime="text/csv")
-    with ex2:
-        url = storage.sheet_url()
-        if url:
-            st.markdown(f'<div style="padding-top:6px"><a href="{url}" target="_blank">Open the live Google Sheet ↗</a></div>',
-                        unsafe_allow_html=True)
+    st.write("")
  
-    st.divider()
- 
-    # search + filter
-    f1, f2 = st.columns([2, 2])
-    q = f1.text_input("Search", placeholder="Name, company, owner, sector…", label_visibility="collapsed")
-    status_opts = ["All status"] + [s for s in OPTIONS["status"] if counts.get(s)]
-    sf = f2.selectbox("Filter", status_opts, label_visibility="collapsed")
+    # search + filter card
+    with st.container(border=True):
+        f1, f2 = st.columns([2, 2])
+        q = f1.text_input("Search", placeholder="🔍  Name, company, owner, sector…", label_visibility="collapsed")
+        status_opts = ["All status"] + [s for s in OPTIONS["status"] if counts.get(s)]
+        sf = f2.selectbox("Filter", status_opts, label_visibility="collapsed")
  
     ql = (q or "").lower()
     rows = []
@@ -513,12 +530,12 @@ def outreach_view(user):
                            "tone": tone, "context": context, "sender": sender, "email": semail})
     with right:
         st.markdown('<div class="scx-eyebrow">Personalized prompt</div>', unsafe_allow_html=True)
-        st.subheader("Prompt preview")
-        st.code(prompt, language=None)
+        st.markdown('<p class="sec-title">Prompt preview</p>', unsafe_allow_html=True)
+        st.caption("Select all and copy, or download — then paste into ChatGPT/Claude with web search on.")
+        st.text_area("Prompt", prompt, height=420, label_visibility="collapsed")
         fname = "stratconnect-" + "".join(ch if ch.isalnum() else "-" for ch in (company or "company")).lower() + ".txt"
-        st.download_button("Download .txt", prompt.encode("utf-8"), file_name=fname, mime="text/plain")
-        st.caption("Paste into ChatGPT or Claude with search enabled. You’ll get three strategically "
-                   "different, source-informed emails, strongest marked Recommended.")
+        st.download_button("Download .txt", prompt.encode("utf-8"), file_name=fname,
+                           mime="text/plain", use_container_width=True)
  
  
 # ---------------------------------------------------------------------- access
@@ -575,4 +592,3 @@ def access_view(user):
                 storage.remove_access(entry)
             flash(f"Removed {entry}", "🗑️")
             st.rerun()
- 
