@@ -1,10 +1,10 @@
-# StratConnect theme — clean warm-paper light look.
+# StratConnect theme — friendly modern violet.
 [theme]
 base = "light"
-primaryColor = "#a9741f"
-backgroundColor = "#f6f4ef"
-secondaryBackgroundColor = "#fffdf8"
-textColor = "#1f1d19"
+primaryColor = "#6a5cf0"
+backgroundColor = "#f4f3fb"
+secondaryBackgroundColor = "#ffffff"
+textColor = "#221f33"
 font = "sans serif"
  
 [server]
