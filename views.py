@@ -45,9 +45,14 @@ def inject_css():
       [data-testid="stIconMaterial"], .material-icons, .material-symbols-outlined,
       .material-symbols-rounded, span[class*="material-"], [data-testid*="Icon"] span{
         font-family:'Material Symbols Rounded','Material Symbols Outlined','Material Icons'!important;}
-      /* hide Streamlit chrome that reads as "default template" */
-      #MainMenu, header[data-testid="stHeader"], footer{visibility:hidden;}
-      [data-testid="stElementToolbar"]{display:none!important;}
+      /* hide Streamlit chrome that reads as "default template" — but KEEP the
+         sidebar expand/collapse control working */
+      #MainMenu, footer{visibility:hidden;}
+      header[data-testid="stHeader"]{background:transparent;}
+      [data-testid="stToolbar"], [data-testid="stElementToolbar"], [data-testid="stStatusWidget"]{display:none!important;}
+      [data-testid="stSidebarCollapsedControl"], [data-testid="collapsedControl"],
+      [data-testid="stSidebarCollapseButton"], [data-testid="stExpandSidebarButton"]{
+        visibility:visible!important;display:flex!important;}
       [data-testid="stHeading"] a, .stHeadingContainer a{display:none!important;}
  
       /* sidebar */
@@ -604,3 +609,4 @@ def access_view(user):
                 storage.remove_access(entry)
             flash(f"Removed {entry}", "🗑️")
             st.rerun()
+ 
