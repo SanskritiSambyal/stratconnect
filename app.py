@@ -92,8 +92,7 @@ with st.sidebar:
     st.session_state["page"] = page
  
     st.divider()
-    st.caption("Tip: use the ⋮ menu (top-right) → Settings to switch between light and dark.")
-    if st.button("Log out"):
+    if st.button("Log out", use_container_width=True):
         auth.logout()
         st.rerun()
  
