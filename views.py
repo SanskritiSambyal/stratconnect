@@ -45,14 +45,16 @@ def inject_css():
       [data-testid="stIconMaterial"], .material-icons, .material-symbols-outlined,
       .material-symbols-rounded, span[class*="material-"], [data-testid*="Icon"] span{
         font-family:'Material Symbols Rounded','Material Symbols Outlined','Material Icons'!important;}
-      /* hide Streamlit chrome that reads as "default template" — but KEEP the
-         sidebar expand/collapse control working */
-      #MainMenu, footer{visibility:hidden;}
+      /* light de-clutter — DON'T hide the header/toolbar, the sidebar expand
+         arrow lives there. Only drop the hamburger, status widget and footer. */
+      #MainMenu{visibility:hidden;}
+      footer{visibility:hidden;}
       header[data-testid="stHeader"]{background:transparent;}
-      [data-testid="stToolbar"], [data-testid="stElementToolbar"], [data-testid="stStatusWidget"]{display:none!important;}
-      [data-testid="stSidebarCollapsedControl"], [data-testid="collapsedControl"],
-      [data-testid="stSidebarCollapseButton"], [data-testid="stExpandSidebarButton"]{
-        visibility:visible!important;display:flex!important;}
+      [data-testid="stStatusWidget"]{display:none!important;}
+      [data-testid="stElementToolbar"]{display:none!important;}
+      /* belt-and-braces: make sure the collapsed-sidebar control shows */
+      [data-testid="stSidebarCollapsedControl"], [data-testid="collapsedControl"]{
+        visibility:visible!important;opacity:1!important;}
       [data-testid="stHeading"] a, .stHeadingContainer a{display:none!important;}
  
       /* sidebar */
