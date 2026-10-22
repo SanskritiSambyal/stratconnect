@@ -29,6 +29,9 @@ if not fresh_role:
 user["role"] = fresh_role
 st.session_state["auth"] = user
  
+# show any acknowledgement queued before the last rerun
+views.show_flash()
+ 
 # ---- sidebar / nav ----
 with st.sidebar:
     st.markdown('<div class="scx-brand">StratConnect<span class="d">.</span></div>', unsafe_allow_html=True)
