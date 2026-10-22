@@ -1,0 +1,11 @@
+# StratConnect theme — clean warm-paper light look.
+[theme]
+base = "light"
+primaryColor = "#a9741f"
+backgroundColor = "#f6f4ef"
+secondaryBackgroundColor = "#fffdf8"
+textColor = "#1f1d19"
+font = "sans serif"
+ 
+[server]
+headless = true
