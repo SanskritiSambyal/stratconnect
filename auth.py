@@ -13,6 +13,7 @@ Authorization sources (highest first):
   - access worksheet: "@domain"    -> its role
   - secrets["allowed_domains"]     -> secrets["default_role"] (default 'viewer')
 """
+import base64
 import hashlib
 import hmac
 import random
@@ -30,6 +31,8 @@ EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 OTP_TTL = 600          # seconds a code stays valid
 RESEND_GAP = 30        # seconds between sends
 MAX_ATTEMPTS = 5
+SESSION_HOURS = 8      # how long a verified login stays valid
+COOKIE_NAME = "scx_auth"
  
  
 def _secret(key, default=None):
@@ -198,24 +201,67 @@ def verify_code(entered):
     return False, "That code doesn't match. Try again."
  
  
+# ----------------------------------------------------- signed session token
+def make_token(email, exp_ts):
+    """A tamper-proof token carrying the email and its expiry."""
+    msg = f"{email}|{int(exp_ts)}"
+    sig = hmac.new(_salt().encode(), msg.encode(), hashlib.sha256).hexdigest()
+    raw = f"{msg}|{sig}".encode()
+    return base64.urlsafe_b64encode(raw).decode()
+ 
+ 
+def read_token(token):
+    """Return (email, exp) if the token is valid and unexpired, else (None, None)."""
+    try:
+        raw = base64.urlsafe_b64decode(token.encode()).decode()
+        email, exp, sig = raw.rsplit("|", 2)
+        good = hmac.new(_salt().encode(), f"{email}|{exp}".encode(), hashlib.sha256).hexdigest()
+        if hmac.compare_digest(good, sig) and time.time() < int(exp):
+            return email, int(exp)
+    except Exception:
+        pass
+    return None, None
+ 
+ 
 def complete_login():
-    """Promote a verified OTP email into a signed-in session."""
+    """Promote a verified OTP email into a signed-in session (valid SESSION_HOURS)."""
     email = st.session_state.get("otp_email")
     role = resolve_role(email)
     if not role:
         return False
-    st.session_state["auth"] = {"email": email, "role": role}
+    exp = time.time() + SESSION_HOURS * 3600
+    st.session_state["auth"] = {"email": email, "role": role, "exp": exp}
+    st.session_state["_pending_cookie"] = make_token(email, exp)  # app.py writes the cookie
     for k in ("otp_hash", "otp_email", "otp_expires", "otp_sent_at", "otp_attempts"):
         st.session_state.pop(k, None)
     return True
  
  
+def restore_from_token(token):
+    """Re-establish a session from a valid cookie token (used on page reload)."""
+    email, exp = read_token(token)
+    if not email:
+        return False
+    role = resolve_role(email)
+    if not role:
+        return False
+    st.session_state["auth"] = {"email": email, "role": role, "exp": exp}
+    return True
+ 
+ 
 def current_user():
-    return st.session_state.get("auth")
+    a = st.session_state.get("auth")
+    if a and a.get("exp", 0) > time.time():
+        return a
+    if a:  # expired — drop it and clear the cookie
+        st.session_state.pop("auth", None)
+        st.session_state["_clear_cookie"] = True
+    return None
  
  
 def logout():
     for k in ("auth", "otp_hash", "otp_email", "otp_expires", "otp_sent_at",
               "otp_attempts", "editing_id", "page"):
         st.session_state.pop(k, None)
+    st.session_state["_clear_cookie"] = True  # app.py deletes the cookie
  
