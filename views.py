@@ -18,20 +18,20 @@ EXPORT_ORDER = ["priority", "name", "desig", "company", "sector", "email", "phon
 def inject_css():
     st.markdown("""
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap');
  
       :root{
-        --bg:#f4f3fb; --card:#ffffff; --line:#eae8f4; --line-2:#f3f2fb;
-        --ink:#221f33; --muted:#6a6782; --faint:#a4a1b8;
-        --accent:#6a5cf0; --accent-ink:#4b3cd6; --accent-soft:#ece9ff;
-        --accent-2:#9a6cff; --grad:linear-gradient(135deg,#6a5cf0 0%,#9a6cff 100%);
-        --ok-bg:#e6f7ee; --ok-fg:#1f9254; --warn-bg:#fdf0d6; --warn-fg:#a9780f;
-        --info-bg:#e7edfd; --info-fg:#3f63c9; --crit-bg:#fde6ea; --crit-fg:#d23b56;
-        --hold-bg:#f1e9fb; --hold-fg:#7d4fc0;
-        --sh:0 2px 6px rgba(70,60,160,.05),0 14px 34px rgba(70,60,160,.09);
-        --sh-sm:0 2px 6px rgba(70,60,160,.07);
+        --bg:#f3f4f6; --card:#ffffff; --line:#e3e6ea; --line-2:#eef0f3;
+        --ink:#17222f; --muted:#5a6673; --faint:#97a1ad;
+        --accent:#1f3d5c; --accent-ink:#17304a; --accent-soft:#e8edf3;
+        --accent-2:#2c577e; --grad:linear-gradient(135deg,#213f5e 0%,#2d5a82 100%);
+        --ok-bg:#e7f3ec; --ok-fg:#1f7a4d; --warn-bg:#fbf0d9; --warn-fg:#916313;
+        --info-bg:#e8eef6; --info-fg:#2f5a86; --crit-bg:#f8e5e3; --crit-fg:#b23b33;
+        --hold-bg:#ece9f2; --hold-fg:#5c4e82;
+        --sh:0 1px 2px rgba(23,34,47,.04),0 10px 30px rgba(23,34,47,.07);
+        --sh-sm:0 1px 3px rgba(23,34,47,.06);
         --ui:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;
-        --disp:'Poppins',system-ui,sans-serif; --mono:'Space Mono',monospace;
+        --disp:'Fraunces',Georgia,serif; --mono:'Space Mono',monospace;
       }
  
       /* base — set font on the app root only; DON'T touch icon elements */
@@ -51,7 +51,7 @@ def inject_css():
       [data-testid="stHeading"] a, .stHeadingContainer a{display:none!important;}
  
       /* sidebar */
-      section[data-testid="stSidebar"]{background:linear-gradient(180deg,#ffffff 0%,#f7f5ff 100%);
+      section[data-testid="stSidebar"]{background:linear-gradient(180deg,#ffffff 0%,#f8f9fb 100%);
         border-right:1px solid var(--line);}
       section[data-testid="stSidebar"] .block-container{padding-top:1.4rem;}
       /* nav radio -> clean menu */
@@ -61,7 +61,7 @@ def inject_css():
         font-weight:600;font-size:14.5px;color:var(--muted);cursor:pointer;transition:.14s;margin:0;}
       section[data-testid="stSidebar"] [role="radiogroup"] label:hover{background:var(--accent-soft);color:var(--accent-ink);}
       section[data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked){
-        background:var(--grad);color:#fff;box-shadow:0 6px 16px rgba(106,92,240,.35);}
+        background:var(--grad);color:#fff;box-shadow:0 6px 16px rgba(33,63,94,.35);}
       section[data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) *{color:#fff;}
       section[data-testid="stSidebar"] [role="radiogroup"] label>div:first-child{display:none;} /* hide radio dot */
  
@@ -72,15 +72,15 @@ def inject_css():
         padding:.55rem 1.2rem;box-shadow:var(--sh-sm);transition:.16s;}
       .stButton>button:hover, .stDownloadButton>button:hover, .stFormSubmitButton>button:hover{
         border-color:var(--accent);color:var(--accent-ink);transform:translateY(-1px);
-        box-shadow:0 6px 16px rgba(106,92,240,.18);}
+        box-shadow:0 6px 16px rgba(33,63,94,.18);}
       button[kind="primary"], button[kind="primaryFormSubmit"],
       [data-testid="baseButton-primary"], [data-testid="baseButton-primaryFormSubmit"]{
         background:var(--grad)!important;color:#fff!important;border:1.5px solid transparent!important;
-        box-shadow:0 6px 18px rgba(106,92,240,.4)!important;}
+        box-shadow:0 6px 18px rgba(33,63,94,.4)!important;}
       button[kind="primary"] *, button[kind="primaryFormSubmit"] *{color:#fff!important;}
       button[kind="primary"]:hover, button[kind="primaryFormSubmit"]:hover{
         filter:brightness(1.05);transform:translateY(-1px);
-        box-shadow:0 10px 24px rgba(106,92,240,.48)!important;}
+        box-shadow:0 10px 24px rgba(33,63,94,.48)!important;}
  
       /* inputs */
       [data-baseweb="input"], [data-baseweb="select"]>div, [data-baseweb="textarea"]{
@@ -88,7 +88,7 @@ def inject_css():
       .stTextInput input, .stTextArea textarea, .stDateInput input, [data-baseweb="select"] div{
         font-family:var(--ui)!important;color:var(--ink)!important;}
       [data-baseweb="input"]:focus-within, [data-baseweb="select"]>div:focus-within, [data-baseweb="textarea"]:focus-within{
-        border-color:var(--accent)!important;box-shadow:0 0 0 3px rgba(106,92,240,.18)!important;}
+        border-color:var(--accent)!important;box-shadow:0 0 0 3px rgba(33,63,94,.18)!important;}
       .stTextInput label, .stTextArea label, .stSelectbox label, .stDateInput label{
         font-weight:600!important;font-size:13px!important;color:var(--muted)!important;}
  
@@ -119,7 +119,7 @@ def inject_css():
       /* role chip + section headers */
       .rolechip{font-family:var(--ui);font-size:11.5px;font-weight:700;letter-spacing:.03em;
         color:#fff;background:var(--grad);border-radius:30px;padding:5px 14px;
-        white-space:nowrap;box-shadow:0 4px 12px rgba(106,92,240,.3);}
+        white-space:nowrap;box-shadow:0 4px 12px rgba(33,63,94,.3);}
       .sec-title{font-family:var(--disp);font-size:19px;font-weight:600;color:var(--ink);margin:0;}
  
       /* alerts softer */
@@ -203,7 +203,7 @@ def login_view():
                     st.error("Please enter a valid email address.")
                 elif not auth.resolve_role(email):
                     st.error("This email isn't on the approved list yet. "
-                             "Ask a club admin to grant access to this address.")
+                             "Ask a committee admin to grant access to this address.")
                 else:
                     with st.spinner("Sending your code…"):
                         ok, msg, dev = auth.send_code(email)
@@ -534,8 +534,8 @@ def outreach_view(user):
         tone = st.selectbox("Email voice", ["Consulting-grade, credible", "Concise executive",
                 "Warm and relationship-led", "Bold, insight-led"])
         context = st.text_area("Custom angle (optional)", placeholder="Add a possible strategic opportunity.")
-        sender = st.text_input("Club representative", placeholder="[Your Name]")
-        semail = st.text_input("Official club email", placeholder="[Official Email]")
+        sender = st.text_input("Committee representative", placeholder="[Your Name]")
+        semail = st.text_input("Official committee email", placeholder="[Official Email]")
         st.info("Use ChatGPT or Claude with web search on. Verify sources, dates and claims before sending.")
  
     prompt = build_prompt({"company": company, "window": window, "focus": focus, "collab": collab,
