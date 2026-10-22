@@ -1,43 +1,141 @@
 """Streamlit view functions for each page."""
 import io
-
+ 
 import pandas as pd
 import streamlit as st
-
+ 
 import auth
 import storage
 from constants import (APP_NAME, ORG_NAME, DATA_FIELDS, FIELD_KEYS, LABELS, OPTIONS,
                        STATUS_STYLE, PRIORITY_COLOR, ROLES, ROLE_HELP, can_edit, can_admin,
                        build_prompt)
-
+ 
 EXPORT_ORDER = ["priority", "name", "desig", "company", "sector", "email", "phone",
                 "conn", "channel", "purpose", "owner", "status", "lastdate", "lastnote",
                 "follow", "next", "nextdate", "notes"]
-
-
+ 
+ 
 def inject_css():
     st.markdown("""
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Space+Mono:wght@400;700&display=swap');
-      h1,h2,h3{font-family:'Fraunces',Georgia,serif!important;letter-spacing:-.01em}
-      .scx-brand{font-family:'Fraunces',Georgia,serif;font-size:26px;font-weight:600;line-height:1}
-      .scx-brand .d{color:#b1832b}
-      .scx-kick{font-family:'Space Mono',monospace;font-size:10.5px;letter-spacing:.14em;
-        text-transform:uppercase;color:#8a867a}
-      .scx-eyebrow{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.16em;
-        text-transform:uppercase;color:#8a5f14;font-weight:700;margin-bottom:2px}
-      .pill{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;padding:3px 9px;
-        border-radius:5px;white-space:nowrap;display:inline-block}
-      .sub{color:#7a766a;font-size:12.5px}
-      .next-over{color:#9c3a2b;font-weight:700;font-family:'Space Mono',monospace;font-size:12px}
-      .next{color:#7a766a;font-family:'Space Mono',monospace;font-size:12px}
-      .barwrap{background:rgba(120,110,90,.15);border-radius:5px;height:8px;overflow:hidden}
-      .barwrap>span{display:block;height:100%;background:#b1832b;border-radius:5px}
-      div[data-testid="stMetricValue"]{font-family:'Space Mono',monospace}
+      @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+ 
+      :root{
+        --bg:#f6f4ef; --card:#ffffff; --line:#e8e3d9; --line-2:#f0ece3;
+        --ink:#1f1d19; --muted:#6c6557; --faint:#978f80;
+        --accent:#a9741f; --accent-ink:#875a12; --accent-soft:#f6ecd9;
+        --ok-bg:#e6f3ea; --ok-fg:#2c7a4e; --warn-bg:#fbeecf; --warn-fg:#8a6212;
+        --info-bg:#e7eef7; --info-fg:#3a5f8a; --crit-bg:#f8e3df; --crit-fg:#a83a2c;
+        --sh:0 1px 2px rgba(31,29,25,.04),0 8px 24px rgba(31,29,25,.06);
+        --sh-sm:0 1px 2px rgba(31,29,25,.05);
+        --ui:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;
+        --disp:'Fraunces',Georgia,serif; --mono:'Space Mono',monospace;
+      }
+ 
+      /* base */
+      html, body, .stApp, [class*="st-"]{font-family:var(--ui);}
+      .stApp{background:var(--bg);}
+      .block-container{max-width:1060px;padding-top:1.4rem;padding-bottom:4rem;}
+      h1,h2,h3{font-family:var(--disp)!important;letter-spacing:-.015em;color:var(--ink);font-weight:600;}
+      p,span,label,li,div{color:var(--ink);}
+      a{color:var(--accent-ink);}
+      /* hide Streamlit chrome that reads as "default template" */
+      #MainMenu, header[data-testid="stHeader"], footer{visibility:hidden;}
+      [data-testid="stHeaderActionElements"], [data-testid="stElementToolbar"]{display:none!important;}
+      [data-testid="stHeading"] a, .stHeadingContainer a{display:none!important;}
+ 
+      /* sidebar */
+      section[data-testid="stSidebar"]{background:#fffdf8;border-right:1px solid var(--line);}
+      section[data-testid="stSidebar"] .block-container{padding-top:1.2rem;}
+      /* nav radio -> clean menu */
+      section[data-testid="stSidebar"] [role="radiogroup"]{gap:4px;}
+      section[data-testid="stSidebar"] [role="radiogroup"] label{
+        display:flex;align-items:center;width:100%;padding:9px 12px;border-radius:11px;
+        font-weight:600;font-size:14.5px;color:var(--muted);cursor:pointer;transition:.12s;margin:0;}
+      section[data-testid="stSidebar"] [role="radiogroup"] label:hover{background:var(--accent-soft);color:var(--accent-ink);}
+      section[data-testid="stSidebar"] [role="radiogroup"] label[data-checked="true"],
+      section[data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked){
+        background:var(--accent);color:#fff;box-shadow:var(--sh-sm);}
+      section[data-testid="stSidebar"] [role="radiogroup"] label>div:first-child{display:none;} /* hide radio dot */
+ 
+      /* buttons */
+      .stButton>button, .stDownloadButton>button, .stFormSubmitButton>button{
+        border-radius:12px;font-family:var(--ui);font-weight:600;font-size:14px;
+        border:1px solid var(--line);background:var(--card);color:var(--ink);
+        padding:.5rem 1.05rem;box-shadow:var(--sh-sm);transition:.14s;}
+      .stButton>button:hover, .stDownloadButton>button:hover, .stFormSubmitButton>button:hover{
+        border-color:var(--accent);color:var(--accent-ink);transform:translateY(-1px);}
+      button[kind="primary"], button[kind="primaryFormSubmit"],
+      [data-testid="baseButton-primary"], [data-testid="baseButton-primaryFormSubmit"]{
+        background:var(--accent)!important;color:#fff!important;border:1px solid transparent!important;
+        box-shadow:0 2px 8px rgba(169,116,31,.3)!important;}
+      button[kind="primary"]:hover, button[kind="primaryFormSubmit"]:hover{
+        filter:brightness(1.06);color:#fff!important;transform:translateY(-1px);}
+ 
+      /* inputs */
+      [data-baseweb="input"], [data-baseweb="select"]>div, [data-baseweb="textarea"]{
+        border-radius:11px!important;border-color:var(--line)!important;background:var(--card)!important;}
+      .stTextInput input, .stTextArea textarea, .stDateInput input, [data-baseweb="select"] div{
+        font-family:var(--ui)!important;color:var(--ink)!important;}
+      [data-baseweb="input"]:focus-within, [data-baseweb="select"]>div:focus-within, [data-baseweb="textarea"]:focus-within{
+        border-color:var(--accent)!important;box-shadow:0 0 0 3px rgba(169,116,31,.18)!important;}
+      .stTextInput label, .stTextArea label, .stSelectbox label, .stDateInput label{
+        font-weight:600!important;font-size:13px!important;color:var(--muted)!important;}
+ 
+      /* metric tiles -> cards */
+      [data-testid="stMetric"]{background:var(--card);border:1px solid var(--line);border-radius:16px;
+        padding:16px 18px 14px;box-shadow:var(--sh);}
+      [data-testid="stMetricValue"]{font-family:var(--disp);font-weight:700;font-size:34px;color:var(--ink);}
+      [data-testid="stMetricLabel"] p{font-weight:600;font-size:12px!important;text-transform:uppercase;
+        letter-spacing:.06em;color:var(--muted);}
+ 
+      /* expander -> card */
+      [data-testid="stExpander"]{border:1px solid var(--line);border-radius:14px;background:var(--card);
+        box-shadow:var(--sh-sm);overflow:hidden;margin-bottom:10px;}
+      [data-testid="stExpander"] summary{padding:.7rem 1rem;font-weight:600;border-radius:14px;}
+      [data-testid="stExpander"] summary:hover{background:var(--line-2);}
+      [data-testid="stExpander"] summary p{font-family:var(--disp);font-size:16px;font-weight:600;}
+ 
+      /* bordered containers -> cards */
+      [data-testid="stVerticalBlockBorderWrapper"]:has(> div > [data-testid="stVerticalBlock"]){}
+      div[data-testid="stExpanderDetails"]{background:#fcfbf8;}
+ 
+      /* alerts softer */
+      [data-testid="stAlert"]{border-radius:12px;border:1px solid var(--line);}
+ 
+      /* custom bits */
+      .scx-brand{font-family:var(--disp);font-size:25px;font-weight:700;line-height:1;color:var(--ink);}
+      .scx-brand .d{color:var(--accent);}
+      .scx-kick{font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);}
+      .scx-eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;
+        color:var(--accent-ink);font-weight:700;margin-bottom:2px;}
+      .pill{font-family:var(--mono);font-size:11px;font-weight:700;padding:3px 10px;border-radius:30px;
+        white-space:nowrap;display:inline-block;}
+      .sub{color:var(--muted);font-size:12.5px;}
+      .next-over{color:var(--crit-fg);font-weight:700;font-family:var(--mono);font-size:12px;}
+      .next{color:var(--muted);font-family:var(--mono);font-size:12px;}
+      .barwrap{background:var(--line-2);border-radius:30px;height:9px;overflow:hidden;}
+      .barwrap>span{display:block;height:100%;background:var(--accent);border-radius:30px;}
+      .kvk{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--faint);}
+      .kvv{font-size:13.5px;color:var(--ink);margin-bottom:10px;}
     </style>
     """, unsafe_allow_html=True)
-
-
+ 
+ 
+def flash(msg, icon="✅"):
+    """Queue a toast to show on the next run (survives st.rerun)."""
+    st.session_state["_flash"] = {"msg": msg, "icon": icon}
+ 
+ 
+def show_flash():
+    f = st.session_state.pop("_flash", None)
+    if f:
+        try:
+            st.toast(f["msg"], icon=f.get("icon"))
+        except Exception:
+            pass
+ 
+ 
 def header(user=None):
     c1, c2 = st.columns([3, 1])
     with c1:
@@ -47,13 +145,13 @@ def header(user=None):
         if user:
             st.markdown(f'<div style="text-align:right" class="sub">{user["email"]}<br>'
                         f'<b>{user["role"].title()}</b></div>', unsafe_allow_html=True)
-
-
+ 
+ 
 def pill(status):
     bg, fg = STATUS_STYLE.get(status, ("#e4e2d6", "#5f5b4d"))
     return f'<span class="pill" style="background:{bg};color:{fg}">{status or "—"}</span>'
-
-
+ 
+ 
 # ---------------------------------------------------------------------- login
 def login_view():
     inject_css()
@@ -65,9 +163,9 @@ def login_view():
         st.subheader("Verify your institute email")
         st.caption("Access is limited to approved institute email addresses. "
                    "We'll email you a one-time code to confirm it's you.")
-
+ 
         stage = "code" if "otp_hash" in st.session_state else "email"
-
+ 
         if stage == "email":
             with st.form("email_form"):
                 email = st.text_input("Institute email", placeholder="you@iimmumbai.ac.in")
@@ -80,20 +178,26 @@ def login_view():
                     st.error("This email isn't on the approved list yet. "
                              "Ask a club admin to grant access to this address.")
                 else:
-                    ok, msg, dev = auth.send_code(email)
-                    (st.success if ok else st.error)(msg)
-                    if dev:
-                        st.info(f"Your code (dev mode): **{dev}**")
+                    with st.spinner("Sending your code…"):
+                        ok, msg, dev = auth.send_code(email)
                     if ok:
+                        if dev:
+                            st.info(f"Your code (dev mode): **{dev}**")
+                        flash("Code sent — check your inbox", "✉️")
                         st.rerun()
+                    else:
+                        st.error(msg)
         else:
             st.success(f"Code sent to **{st.session_state.get('otp_email')}**.")
             with st.form("code_form"):
                 code = st.text_input("6-digit code", max_chars=6, placeholder="123456")
                 submitted = st.form_submit_button("Verify & enter", type="primary")
             if submitted:
-                ok, msg = auth.verify_code(code)
-                if ok and auth.complete_login():
+                with st.spinner("Verifying…"):
+                    ok, msg = auth.verify_code(code)
+                    done = ok and auth.complete_login()
+                if done:
+                    flash("Welcome in!", "🎉")
                     st.rerun()
                 elif ok:
                     st.error("Verified, but your access was removed. Contact an admin.")
@@ -111,31 +215,32 @@ def login_view():
                     for k in ("otp_hash", "otp_email", "otp_expires", "otp_sent_at", "otp_attempts"):
                         st.session_state.pop(k, None)
                     st.rerun()
-
-
+ 
+ 
 # --------------------------------------------------------------------- tracker
 def _overdue(c, today):
     return c.get("follow") == "Yes" and c.get("nextdate") and c["nextdate"] < today
-
-
+ 
+ 
 def tracker_view(user):
     import datetime
     today = datetime.date.today().isoformat()
-    contacts = storage.list_contacts()
-
+    with st.spinner("Loading contacts…"):
+        contacts = storage.list_contacts()
+ 
     total = len(contacts)
     due = sum(1 for c in contacts if _overdue(c, today))
     confirmed = sum(1 for c in contacts if c.get("status") == "Confirmed")
     live = sum(1 for c in contacts if c.get("status") in ("In Conversation", "Call Scheduled"))
-
+ 
     k1, k2, k3, k4 = st.columns(4)
     k1.metric("Total contacts", total)
     k2.metric("Follow-ups overdue", due)
     k3.metric("In conversation", live)
     k4.metric("Confirmed", confirmed)
-
+ 
     st.divider()
-
+ 
     # pipeline breakdown
     st.markdown('<div class="scx-eyebrow">Pipeline</div>', unsafe_allow_html=True)
     counts = {s: 0 for s in OPTIONS["status"]}
@@ -154,7 +259,7 @@ def tracker_view(user):
                         unsafe_allow_html=True)
     else:
         st.caption("No contacts yet — the pipeline fills in as you add them.")
-
+ 
     # export
     ex1, ex2 = st.columns([1, 3])
     with ex1:
@@ -167,15 +272,15 @@ def tracker_view(user):
         if url:
             st.markdown(f'<div style="padding-top:6px"><a href="{url}" target="_blank">Open the live Google Sheet ↗</a></div>',
                         unsafe_allow_html=True)
-
+ 
     st.divider()
-
+ 
     # search + filter
     f1, f2 = st.columns([2, 2])
     q = f1.text_input("Search", placeholder="Name, company, owner, sector…", label_visibility="collapsed")
     status_opts = ["All status"] + [s for s in OPTIONS["status"] if counts.get(s)]
     sf = f2.selectbox("Filter", status_opts, label_visibility="collapsed")
-
+ 
     ql = (q or "").lower()
     rows = []
     for c in contacts:
@@ -186,7 +291,7 @@ def tracker_view(user):
             if ql not in hay:
                 continue
         rows.append(c)
-
+ 
     if not contacts:
         st.info("No contacts yet. " + ("Use **Add entry** to log the first one."
                 if can_edit(user["role"]) else "An editor will add the first one."))
@@ -194,7 +299,7 @@ def tracker_view(user):
     if not rows:
         st.caption("No contacts match that search or filter.")
         return
-
+ 
     editable = can_edit(user["role"])
     for c in rows:
         over = _overdue(c, today)
@@ -220,7 +325,7 @@ def tracker_view(user):
                 meta.append("Owner: " + c["owner"])
             if meta:
                 st.markdown('<div class="sub">' + "  ·  ".join(meta) + "</div>", unsafe_allow_html=True)
-
+ 
             pairs = [("Email", c.get("email")), ("Phone / LinkedIn", c.get("phone")),
                      ("Sector", c.get("sector")), ("Purpose", c.get("purpose")),
                      ("Preferred channel", c.get("channel")), ("Follow-up needed", c.get("follow")),
@@ -243,14 +348,16 @@ def tracker_view(user):
                 if b2.button("Delete", key="d_" + c["_id"]):
                     k = "confirm_" + c["_id"]
                     if st.session_state.get(k):
-                        storage.delete_contact(c["_id"])
+                        with st.spinner("Deleting…"):
+                            storage.delete_contact(c["_id"])
                         st.session_state.pop(k, None)
+                        flash(f"Deleted {c.get('name') or 'contact'}", "🗑️")
                         st.rerun()
                     else:
                         st.session_state[k] = True
                         st.warning("Click Delete again to confirm.")
-
-
+ 
+ 
 def _fmt(iso):
     import datetime
     if not iso:
@@ -259,8 +366,8 @@ def _fmt(iso):
         return datetime.date.fromisoformat(iso).strftime("%d %b %Y")
     except Exception:
         return str(iso)
-
-
+ 
+ 
 def _export_df(contacts):
     data = []
     for i, c in enumerate(contacts, 1):
@@ -269,14 +376,14 @@ def _export_df(contacts):
             row[LABELS[k]] = c.get(k, "")
         data.append(row)
     return pd.DataFrame(data)
-
-
+ 
+ 
 # -------------------------------------------------------------------- add/edit
 def add_edit_view(user):
     if not can_edit(user["role"]):
         st.info("You have view-only access. Ask an admin to make you an editor to add contacts.")
         return
-
+ 
     editing_id = st.session_state.get("editing_id")
     existing = None
     if editing_id:
@@ -284,21 +391,26 @@ def add_edit_view(user):
         if not existing:
             st.session_state.pop("editing_id", None)
             editing_id = None
-
+ 
     st.markdown('<div class="scx-eyebrow">' + ("Editing" if editing_id else "New contact") + "</div>",
                 unsafe_allow_html=True)
     st.subheader(("Edit " + existing.get("name", "contact")) if existing else "Log an outreach contact")
     st.caption("Everything added here is shared with everyone who can open this hub.")
-
+ 
     g = (existing or {})
-
+ 
+    # one-time token so repeated clicks on the same form can't add duplicates
+    import uuid
+    if not editing_id and "add_token" not in st.session_state:
+        st.session_state["add_token"] = uuid.uuid4().hex
+ 
     def _sel(key):
         opts = OPTIONS[key]
         cur = g.get(key)
         return opts.index(cur) if cur in opts else (opts.index("Medium") if key == "priority"
                else opts.index("Not Started") if key == "status" else 0)
-
-    with st.form("contact_form", clear_on_submit=False):
+ 
+    with st.form("contact_form", clear_on_submit=not editing_id):
         c1, c2, c3 = st.columns(3)
         name = c1.text_input(LABELS["name"] + " *", g.get("name", ""))
         desig = c2.text_input(LABELS["desig"], g.get("desig", ""))
@@ -323,9 +435,9 @@ def add_edit_view(user):
         nxt = c16.text_input(LABELS["next"], g.get("next", ""))
         nextdate = c17.date_input(LABELS["nextdate"], value=_date(g.get("nextdate")), format="YYYY-MM-DD")
         notes = st.text_area(LABELS["notes"], g.get("notes", ""))
-
+ 
         submitted = st.form_submit_button("Save changes" if editing_id else "Add contact", type="primary")
-
+ 
     if submitted:
         if not name.strip():
             st.error("Add a contact name first.")
@@ -339,24 +451,33 @@ def add_edit_view(user):
                 "nextdate": nextdate.isoformat() if nextdate else "", "notes": notes.strip()}
         try:
             if editing_id:
-                storage.update_contact(editing_id, data, created_at=g.get("created_at"))
+                with st.spinner("Saving changes…"):
+                    storage.update_contact(editing_id, data, created_at=g.get("created_at"))
                 st.session_state.pop("editing_id", None)
-                st.success("Changes saved.")
+                flash(f"Saved changes to {data['name']}", "✅")
             else:
-                storage.add_contact(data)
-                st.success("Contact added.")
+                token = st.session_state.get("add_token")
+                if token and token == st.session_state.get("add_token_used"):
+                    # this form was already submitted — ignore the extra click
+                    st.session_state["page"] = "Tracker"
+                    st.rerun()
+                with st.spinner("Adding contact…"):
+                    storage.add_contact(data)
+                st.session_state["add_token_used"] = token
+                st.session_state.pop("add_token", None)  # a fresh form gets a new token
+                flash(f"Added {data['name']}", "✅")
             st.session_state["page"] = "Tracker"
             st.rerun()
         except Exception as e:
             st.error(f"Could not save ({e}).")
-
+ 
     if editing_id:
         if st.button("Cancel edit"):
             st.session_state.pop("editing_id", None)
             st.session_state["page"] = "Tracker"
             st.rerun()
-
-
+ 
+ 
 def _date(iso):
     import datetime
     if not iso:
@@ -365,8 +486,8 @@ def _date(iso):
         return datetime.date.fromisoformat(iso)
     except Exception:
         return None
-
-
+ 
+ 
 # --------------------------------------------------------------------- outreach
 def outreach_view(user):
     st.markdown('<div class="scx-eyebrow">Outreach studio</div>', unsafe_allow_html=True)
@@ -387,7 +508,7 @@ def outreach_view(user):
         sender = st.text_input("Club representative", placeholder="[Your Name]")
         semail = st.text_input("Official club email", placeholder="[Official Email]")
         st.info("Use ChatGPT or Claude with web search on. Verify sources, dates and claims before sending.")
-
+ 
     prompt = build_prompt({"company": company, "window": window, "focus": focus, "collab": collab,
                            "tone": tone, "context": context, "sender": sender, "email": semail})
     with right:
@@ -398,8 +519,8 @@ def outreach_view(user):
         st.download_button("Download .txt", prompt.encode("utf-8"), file_name=fname, mime="text/plain")
         st.caption("Paste into ChatGPT or Claude with search enabled. You’ll get three strategically "
                    "different, source-informed emails, strongest marked Recommended.")
-
-
+ 
+ 
 # ---------------------------------------------------------------------- access
 def access_view(user):
     if not can_admin(user["role"]):
@@ -409,7 +530,7 @@ def access_view(user):
     st.subheader("Who can use this hub")
     st.caption("Grant a specific institute email, or a whole institute domain (e.g. @iimmumbai.ac.in). "
                "Everyone still verifies ownership of their email by one-time code before they get in.")
-
+ 
     with st.form("grant_form", clear_on_submit=True):
         c1, c2, c3 = st.columns([3, 2, 1])
         entry = c1.text_input("Email or @domain", placeholder="person@iimmumbai.ac.in  or  @iimmumbai.ac.in")
@@ -422,10 +543,11 @@ def access_view(user):
         if not ok:
             st.error("Enter a valid email, or a domain starting with @.")
         else:
-            storage.set_access(e, role)
-            st.success(f"Granted {role} to {e}.")
+            with st.spinner("Granting access…"):
+                storage.set_access(e, role)
+            flash(f"Granted {role} to {e}", "🔑")
             st.rerun()
-
+ 
     st.divider()
     try:
         rows = storage.list_access()
@@ -444,8 +566,13 @@ def access_view(user):
         new_role = c2.selectbox("role", ROLES, index=ROLES.index(role) if role in ROLES else 0,
                                 key="role_" + entry, label_visibility="collapsed")
         if new_role != role:
-            storage.set_access(entry, new_role)
+            with st.spinner("Updating role…"):
+                storage.set_access(entry, new_role)
+            flash(f"{entry} is now {new_role}", "🔑")
             st.rerun()
         if c3.button("Remove", key="rm_" + entry):
-            storage.remove_access(entry)
+            with st.spinner("Removing…"):
+                storage.remove_access(entry)
+            flash(f"Removed {entry}", "🗑️")
             st.rerun()
+ 
