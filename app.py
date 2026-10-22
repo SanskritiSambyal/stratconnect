@@ -4,6 +4,8 @@ Networking & outreach tracker + corporate-outreach prompt studio for the
 Strategy & Consulting Club, IIM Mumbai. Access is limited to verified,
 approved institute emails. Data lives in a shared Google Sheet.
 """
+import datetime
+ 
 import streamlit as st
  
 import auth
@@ -14,8 +16,43 @@ st.set_page_config(page_title=APP_NAME, page_icon="◈", layout="wide",
                    initial_sidebar_state="expanded")
 views.inject_css()
  
+# ---- persistent 8-hour session via a signed cookie ----
+# Uses extra-streamlit-components if available; degrades to per-tab session if not.
+cookie_mgr = None
+try:
+    import extra_streamlit_components as stx
+    cookie_mgr = stx.CookieManager(key="scx_cookie_mgr")
+except Exception:
+    cookie_mgr = None
+ 
+if cookie_mgr is not None:
+    # write or clear the cookie if the auth layer asked us to
+    _tok = st.session_state.pop("_pending_cookie", None)
+    if _tok:
+        try:
+            cookie_mgr.set(auth.COOKIE_NAME, _tok, key="scx_set",
+                           expires_at=datetime.datetime.now() + datetime.timedelta(hours=auth.SESSION_HOURS))
+        except Exception:
+            pass
+    if st.session_state.pop("_clear_cookie", None):
+        try:
+            cookie_mgr.delete(auth.COOKIE_NAME, key="scx_del")
+        except Exception:
+            pass
+    # let the cookie component mount once so get() can read on first load
+    if not st.session_state.get("_cookie_ready"):
+        st.session_state["_cookie_ready"] = True
+        st.rerun()
+ 
 # ---- auth gate ----
 user = auth.current_user()
+if not user and cookie_mgr is not None:
+    try:
+        _token = cookie_mgr.get(auth.COOKIE_NAME)
+    except Exception:
+        _token = None
+    if _token and auth.restore_from_token(_token):
+        user = auth.current_user()
 if not user:
     views.login_view()
     st.stop()
