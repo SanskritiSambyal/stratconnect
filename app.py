@@ -1,7 +1,7 @@
 """StratConnect Hub — Streamlit app.
  
 Networking & outreach tracker + corporate-outreach prompt studio for the
-Strategy & Consulting Club, IIM Mumbai. Access is limited to verified,
+Strategy & Consulting Committee, IIM Mumbai. Access is limited to verified,
 approved institute emails. Data lives in a shared Google Sheet.
 """
 import datetime
@@ -61,7 +61,7 @@ if not user:
 fresh_role = auth.resolve_role(user["email"])
 if not fresh_role:
     auth.logout()
-    st.warning("Your access has been removed. Please contact a club admin.")
+    st.warning("Your access has been removed. Please contact a committee admin.")
     st.stop()
 user["role"] = fresh_role
 st.session_state["auth"] = user
