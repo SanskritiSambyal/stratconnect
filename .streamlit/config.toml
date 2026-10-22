@@ -1,10 +1,10 @@
-# StratConnect theme — friendly modern violet.
+# StratConnect theme — professional navy + neutral.
 [theme]
 base = "light"
-primaryColor = "#6a5cf0"
-backgroundColor = "#f4f3fb"
+primaryColor = "#1f3d5c"
+backgroundColor = "#f3f4f6"
 secondaryBackgroundColor = "#ffffff"
-textColor = "#221f33"
+textColor = "#17222f"
 font = "sans serif"
  
 [server]
