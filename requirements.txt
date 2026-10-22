@@ -3,3 +3,4 @@ gspread>=6.1.2
 google-auth>=2.33
 pandas>=2.2
 requests>=2.31
+extra-streamlit-components>=0.1.71
