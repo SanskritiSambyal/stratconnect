@@ -46,8 +46,15 @@ def valid_email(email):
     return bool(EMAIL_RE.match((email or "").strip()))
  
  
+def _normalize(role):
+    """Map any stored role to the two-role model: 'admin' or 'user'."""
+    if role is None:
+        return None
+    return "admin" if str(role).strip().lower() == "admin" else "user"
+ 
+ 
 def resolve_role(email):
-    """Return the role for an email, or None if not authorized."""
+    """Return 'admin' or 'user' for an authorized email, else None."""
     email = (email or "").strip().lower()
     if not email:
         return None
@@ -66,13 +73,13 @@ def resolve_role(email):
     except Exception:
         pass
     if exact:
-        return exact
+        return _normalize(exact)
     if domain_rule:
-        return domain_rule
+        return _normalize(domain_rule)
  
     allowed_domains = [d.strip().lower().lstrip("@") for d in (_secret("allowed_domains", []) or [])]
     if domain in allowed_domains:
-        return (_secret("default_role", "viewer") or "viewer").lower()
+        return _normalize(_secret("default_role", "user") or "user")
     return None
  
  
