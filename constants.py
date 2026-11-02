@@ -10,7 +10,8 @@ DATA_FIELDS = [
     ("company",  "Company / Org"),
     ("sector",   "Sector"),
     ("email",    "Email"),
-    ("phone",    "Phone / LinkedIn"),
+    ("phone",    "Phone"),
+    ("linkedin", "LinkedIn"),
     ("conn",     "Connection Type"),
     ("channel",  "Preferred Channel"),
     ("purpose",  "Purpose"),
@@ -27,9 +28,10 @@ DATA_FIELDS = [
 FIELD_KEYS = [k for k, _ in DATA_FIELDS]
 LABELS = {k: l for k, l in DATA_FIELDS}
  
-# Stored columns in the Google Sheet: stable id + fields + when + who.
-# created_by is LAST so adding it doesn't shift existing rows' columns.
-CONTACT_COLUMNS = ["_id"] + FIELD_KEYS + ["created_at", "created_by"]
+# Stored columns in the Google Sheet: stable id + fields + audit columns.
+# Audit columns go last; storage maps by column NAME so order never breaks data.
+META_COLUMNS = ["created_at", "created_by", "modified_at", "modified_by"]
+CONTACT_COLUMNS = ["_id"] + FIELD_KEYS + META_COLUMNS
  
 OPTIONS = {
     "conn":     ["Alumni", "Personal Connection", "Faculty / Prof Referral", "Peer Referral",
