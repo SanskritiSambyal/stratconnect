@@ -52,11 +52,23 @@ def _ws(title, headers):
         ws = ss.add_worksheet(title=title, rows=200, cols=max(4, len(headers)))
         ws.update(values=[headers], range_name="A1")
         return ws
-    # ensure header row exists
-    first = ws.row_values(1)
-    if first != headers:
-        ws.update(values=[headers], range_name="A1")
+    _ensure_headers(ws, headers)
     return ws
+ 
+ 
+def _ensure_headers(ws, needed):
+    """Make sure every needed column exists as a header, APPENDING any that are
+    missing (never reordering) so existing rows' data stays aligned."""
+    header = ws.row_values(1)
+    if not header:
+        ws.update(values=[needed], range_name="A1")
+        return list(needed)
+    missing = [c for c in needed if c not in header]
+    if missing:
+        header = header + missing
+        last = _col_letter(len(header))
+        ws.update(values=[header], range_name=f"A1:{last}1")
+    return header
  
  
 def _ws_contacts():
@@ -69,55 +81,77 @@ def _ws_access():
  
 # --------------------------------------------------------------------- contacts
 def list_contacts():
+    """Read every contact, mapping cells by HEADER NAME (order-proof)."""
     ws = _ws_contacts()
-    rows = ws.get_all_records(expected_headers=CONTACT_COLUMNS)
+    values = ws.get_all_values()
+    if not values:
+        return []
+    header = values[0]
+    idx = {name: i for i, name in enumerate(header)}
+ 
+    def cell(row, name):
+        i = idx.get(name)
+        return row[i].strip() if (i is not None and i < len(row)) else ""
+ 
     out = []
-    for r in rows:
-        if not r.get("_id"):
+    for row in values[1:]:
+        if not cell(row, "_id"):
             continue
-        rec = {k: ("" if r.get(k) is None else str(r.get(k))) for k in CONTACT_COLUMNS}
-        try:
-            rec["created_at"] = int(r.get("created_at") or 0)
-        except (ValueError, TypeError):
-            rec["created_at"] = 0
+        rec = {col: cell(row, col) for col in CONTACT_COLUMNS}
+        for tk in ("created_at", "modified_at"):
+            try:
+                rec[tk] = int(rec.get(tk) or 0)
+            except (ValueError, TypeError):
+                rec[tk] = 0
         out.append(rec)
     out.sort(key=lambda r: r.get("created_at", 0), reverse=True)
     return out
  
  
-def _row_values(rec):
-    return [str(rec.get(col, "")) for col in CONTACT_COLUMNS]
+def _row_for(ws, rec):
+    """Build a row aligned to the sheet's ACTUAL header order."""
+    header = ws.row_values(1)
+    return header, [str(rec.get(name, "")) for name in header]
  
  
 def add_contact(data, created_by=""):
     ws = _ws_contacts()
+    now = int(time.time() * 1000)
+    who = created_by or data.get("created_by", "")
     rec = {k: data.get(k, "") for k in FIELD_KEYS}
     rec["_id"] = uuid.uuid4().hex
-    rec["created_by"] = created_by or data.get("created_by", "")
-    rec["created_at"] = int(time.time() * 1000)
-    ws.append_row(_row_values(rec), value_input_option="USER_ENTERED")
+    rec["created_at"] = now
+    rec["created_by"] = who
+    rec["modified_at"] = now
+    rec["modified_by"] = who
+    _, row = _row_for(ws, rec)
+    ws.append_row(row, value_input_option="USER_ENTERED")
     return rec["_id"]
  
  
 def _find_row(ws, _id):
-    ids = ws.col_values(1)  # includes header at index 0
+    ids = ws.col_values(1)  # column A = _id, includes header at index 0
     for i, v in enumerate(ids):
         if v == _id:
             return i + 1  # 1-based row number
     return None
  
  
-def update_contact(_id, data, created_at=None, created_by=""):
+def update_contact(_id, data, created_at=None, created_by="", modified_by=""):
     ws = _ws_contacts()
-    row = _find_row(ws, _id)
-    if not row:
+    rownum = _find_row(ws, _id)
+    if not rownum:
         raise KeyError(_id)
+    now = int(time.time() * 1000)
     rec = {k: data.get(k, "") for k in FIELD_KEYS}
     rec["_id"] = _id
+    rec["created_at"] = int(created_at or now)
     rec["created_by"] = created_by or data.get("created_by", "")
-    rec["created_at"] = int(created_at or time.time() * 1000)
-    last_col = _col_letter(len(CONTACT_COLUMNS))
-    ws.update(values=[_row_values(rec)], range_name=f"A{row}:{last_col}{row}")
+    rec["modified_at"] = now
+    rec["modified_by"] = modified_by or created_by or ""
+    header, row = _row_for(ws, rec)
+    last_col = _col_letter(len(header))
+    ws.update(values=[row], range_name=f"A{rownum}:{last_col}{rownum}")
  
  
 def delete_contact(_id):
@@ -181,3 +215,4 @@ def sheet_url():
         return _spreadsheet().url
     except Exception:
         return None
+ 
