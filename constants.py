@@ -27,8 +27,9 @@ DATA_FIELDS = [
 FIELD_KEYS = [k for k, _ in DATA_FIELDS]
 LABELS = {k: l for k, l in DATA_FIELDS}
  
-# Stored columns in the Google Sheet: stable id + fields + timestamp.
-CONTACT_COLUMNS = ["_id"] + FIELD_KEYS + ["created_at"]
+# Stored columns in the Google Sheet: stable id + fields + when + who.
+# created_by is LAST so adding it doesn't shift existing rows' columns.
+CONTACT_COLUMNS = ["_id"] + FIELD_KEYS + ["created_at", "created_by"]
  
 OPTIONS = {
     "conn":     ["Alumni", "Personal Connection", "Faculty / Prof Referral", "Peer Referral",
@@ -56,21 +57,25 @@ STATUS_STYLE = {
 }
 PRIORITY_COLOR = {"High": "#9c3a2b", "Medium": "#86601f", "Low": "#2f6b45"}
  
-ROLES = ["viewer", "editor", "admin"]
-ROLE_RANK = {"viewer": 1, "editor": 2, "admin": 3}
+ROLES = ["user", "admin"]
+ROLE_RANK = {"user": 1, "admin": 2}
 ROLE_HELP = {
-    "viewer": "Can browse the tracker and export data.",
-    "editor": "Can add, edit and delete contacts.",
-    "admin":  "Can also manage who has access.",
+    "user":  "Can add contacts and see/edit only their own.",
+    "admin": "Full access to all contacts + manage members.",
 }
  
  
+def is_admin(role):
+    return role == "admin"
+ 
+ 
 def can_edit(role):
-    return ROLE_RANK.get(role, 0) >= ROLE_RANK["editor"]
+    # both roles can add and edit (users are limited to their own, enforced elsewhere)
+    return role in ("user", "admin")
  
  
 def can_admin(role):
-    return ROLE_RANK.get(role, 0) >= ROLE_RANK["admin"]
+    return role == "admin"
  
  
 def build_prompt(d):
