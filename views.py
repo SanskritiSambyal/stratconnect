@@ -10,7 +10,7 @@ from constants import (APP_NAME, ORG_NAME, DATA_FIELDS, FIELD_KEYS, LABELS, OPTI
                        STATUS_STYLE, PRIORITY_COLOR, ROLES, ROLE_HELP, can_edit, can_admin,
                        build_prompt)
  
-EXPORT_ORDER = ["priority", "name", "desig", "company", "sector", "email", "phone",
+EXPORT_ORDER = ["priority", "name", "desig", "company", "sector", "email", "phone", "linkedin",
                 "conn", "channel", "purpose", "owner", "status", "lastdate", "lastnote",
                 "follow", "next", "nextdate", "notes"]
  
@@ -332,7 +332,7 @@ def tracker_view(user):
         if sf != "All status" and c.get("status") != sf:
             continue
         if ql:
-            hay = " ".join(str(c.get(k, "")) for k in ("name", "company", "owner", "sector", "desig", "purpose", "email")).lower()
+            hay = " ".join(str(c.get(k, "")) for k in ("name", "company", "owner", "sector", "desig", "purpose", "email", "linkedin")).lower()
             if ql not in hay:
                 continue
         rows.append(c)
@@ -372,14 +372,17 @@ def tracker_view(user):
             if meta:
                 st.markdown('<div class="sub">' + "  ·  ".join(meta) + "</div>", unsafe_allow_html=True)
  
-            pairs = [("Email", c.get("email")), ("Phone / LinkedIn", c.get("phone")),
+            pairs = [("Email", c.get("email")), ("Phone", c.get("phone")),
+                     ("LinkedIn", c.get("linkedin")),
                      ("Sector", c.get("sector")), ("Purpose", c.get("purpose")),
                      ("Preferred channel", c.get("channel")), ("Follow-up needed", c.get("follow")),
                      ("Last interaction", " — ".join(x for x in (_fmt(c.get("lastdate")), c.get("lastnote")) if x)),
                      ("Next step", " ".join(x for x in (c.get("next"), ("by " + _fmt(c["nextdate"])) if c.get("nextdate") else "") if x)),
                      ("Notes", c.get("notes"))]
-            if is_admin and c.get("created_by"):
-                pairs.append(("Added by", c.get("created_by")))
+            if c.get("created_by"):
+                pairs.append(("Added by", c.get("created_by") + (" · " + _fmt_ts(c.get("created_at")) if c.get("created_at") else "")))
+            if c.get("modified_by"):
+                pairs.append(("Last modified by", c.get("modified_by") + (" · " + _fmt_ts(c.get("modified_at")) if c.get("modified_at") else "")))
             dc = st.columns(2)
             i = 0
             for k, v in pairs:
@@ -414,6 +417,17 @@ def _fmt(iso):
         return datetime.date.fromisoformat(iso).strftime("%d %b %Y")
     except Exception:
         return str(iso)
+ 
+ 
+def _fmt_ts(ms):
+    import datetime
+    try:
+        ms = int(ms)
+        if ms <= 0:
+            return ""
+        return datetime.datetime.fromtimestamp(ms / 1000).strftime("%d %b %Y, %I:%M %p")
+    except Exception:
+        return ""
  
  
 def _export_df(contacts):
@@ -472,10 +486,12 @@ def add_edit_view(user):
         name = c1.text_input(LABELS["name"] + " *", g.get("name", ""))
         desig = c2.text_input(LABELS["desig"], g.get("desig", ""))
         company = c3.text_input(LABELS["company"], g.get("company", ""))
-        c4, c5, c6 = st.columns(3)
+        c4, c5 = st.columns(2)
         sector = c4.text_input(LABELS["sector"], g.get("sector", ""))
         email = c5.text_input(LABELS["email"], g.get("email", ""))
-        phone = c6.text_input(LABELS["phone"], g.get("phone", ""))
+        cp1, cp2 = st.columns(2)
+        phone = cp1.text_input(LABELS["phone"], g.get("phone", ""), placeholder="+91…")
+        linkedin = cp2.text_input(LABELS["linkedin"], g.get("linkedin", ""), placeholder="linkedin.com/in/…")
         c7, c8, c9 = st.columns(3)
         conn = c7.selectbox(LABELS["conn"], OPTIONS["conn"], index=_sel("conn"))
         channel = c8.selectbox(LABELS["channel"], OPTIONS["channel"], index=_sel("channel"))
@@ -501,6 +517,7 @@ def add_edit_view(user):
             return
         data = {"name": name.strip(), "desig": desig.strip(), "company": company.strip(),
                 "sector": sector.strip(), "email": email.strip(), "phone": phone.strip(),
+                "linkedin": linkedin.strip(),
                 "conn": conn, "channel": channel, "purpose": purpose, "owner": owner.strip(),
                 "priority": priority, "status": status,
                 "lastdate": lastdate.isoformat() if lastdate else "", "lastnote": lastnote.strip(),
@@ -510,7 +527,8 @@ def add_edit_view(user):
             if editing_id:
                 with st.spinner("Saving changes…"):
                     storage.update_contact(editing_id, data, created_at=g.get("created_at"),
-                                           created_by=g.get("created_by") or my_email)
+                                           created_by=g.get("created_by") or my_email,
+                                           modified_by=my_email)
                 st.session_state.pop("editing_id", None)
                 flash(f"Saved changes to {data['name']}", "✅")
             else:
@@ -633,4 +651,3 @@ def access_view(user):
                 storage.remove_access(entry)
             flash(f"Removed {entry}", "🗑️")
             st.rerun()
- 
