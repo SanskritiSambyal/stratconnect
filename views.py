@@ -260,7 +260,16 @@ def tracker_view(user):
     import datetime
     today = datetime.date.today().isoformat()
     with st.spinner("Loading contacts…"):
-        contacts = storage.list_contacts()
+        all_contacts = storage.list_contacts()
+ 
+    # ownership scope: admins see everything, users see only what they added
+    is_admin = user["role"] == "admin"
+    my_email = (user.get("email") or "").strip().lower()
+    if is_admin:
+        contacts = all_contacts
+    else:
+        contacts = [c for c in all_contacts if str(c.get("created_by", "")).strip().lower() == my_email]
+        st.caption("👤 You're seeing only the contacts you added. Admins see everyone's.")
  
     total = len(contacts)
     due = sum(1 for c in contacts if _overdue(c, today))
@@ -304,7 +313,7 @@ def tracker_view(user):
                                    use_container_width=True)
         with ex2:
             url = storage.sheet_url()
-            if url:
+            if url and is_admin:  # only admins get the link to the full sheet
                 st.markdown(f'<div style="padding-top:8px"><a href="{url}" target="_blank">↗ Open the live Google Sheet</a></div>',
                             unsafe_allow_html=True)
  
@@ -329,8 +338,9 @@ def tracker_view(user):
         rows.append(c)
  
     if not contacts:
-        st.info("No contacts yet. " + ("Use **Add entry** to log the first one."
-                if can_edit(user["role"]) else "An editor will add the first one."))
+        msg = "No contacts yet. Use **Add entry** to log your first one." if not is_admin \
+              else "No contacts yet. Use **Add entry** to log the first one."
+        st.info(msg)
         return
     if not rows:
         st.caption("No contacts match that search or filter.")
@@ -368,6 +378,8 @@ def tracker_view(user):
                      ("Last interaction", " — ".join(x for x in (_fmt(c.get("lastdate")), c.get("lastnote")) if x)),
                      ("Next step", " ".join(x for x in (c.get("next"), ("by " + _fmt(c["nextdate"])) if c.get("nextdate") else "") if x)),
                      ("Notes", c.get("notes"))]
+            if is_admin and c.get("created_by"):
+                pairs.append(("Added by", c.get("created_by")))
             dc = st.columns(2)
             i = 0
             for k, v in pairs:
@@ -420,6 +432,9 @@ def add_edit_view(user):
         st.info("You have view-only access. Ask an admin to make you an editor to add contacts.")
         return
  
+    is_admin = user["role"] == "admin"
+    my_email = (user.get("email") or "").strip().lower()
+ 
     editing_id = st.session_state.get("editing_id")
     existing = None
     if editing_id:
@@ -427,11 +442,17 @@ def add_edit_view(user):
         if not existing:
             st.session_state.pop("editing_id", None)
             editing_id = None
+        # users may only edit their own entries
+        elif not is_admin and str(existing.get("created_by", "")).strip().lower() != my_email:
+            st.error("You can only edit contacts you added.")
+            st.session_state.pop("editing_id", None)
+            return
  
     st.markdown('<div class="scx-eyebrow">' + ("Editing" if editing_id else "New contact") + "</div>",
                 unsafe_allow_html=True)
     st.subheader(("Edit " + existing.get("name", "contact")) if existing else "Log an outreach contact")
-    st.caption("Everything added here is shared with everyone who can open this hub.")
+    st.caption("Admins see every contact. Everyone else sees only the ones they add."
+               if is_admin else "The contacts you add here are visible to you and committee admins.")
  
     g = (existing or {})
  
@@ -488,7 +509,8 @@ def add_edit_view(user):
         try:
             if editing_id:
                 with st.spinner("Saving changes…"):
-                    storage.update_contact(editing_id, data, created_at=g.get("created_at"))
+                    storage.update_contact(editing_id, data, created_at=g.get("created_at"),
+                                           created_by=g.get("created_by") or my_email)
                 st.session_state.pop("editing_id", None)
                 flash(f"Saved changes to {data['name']}", "✅")
             else:
@@ -498,7 +520,7 @@ def add_edit_view(user):
                     st.session_state["page"] = "Tracker"
                     st.rerun()
                 with st.spinner("Adding contact…"):
-                    storage.add_contact(data)
+                    storage.add_contact(data, created_by=my_email)
                 st.session_state["add_token_used"] = token
                 st.session_state.pop("add_token", None)  # a fresh form gets a new token
                 flash(f"Added {data['name']}", "✅")
