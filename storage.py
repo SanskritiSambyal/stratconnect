@@ -115,9 +115,14 @@ def list_contacts():
                 fixes.append({"range": f"{_col_letter(ca_i + 1)}{j + 1}", "values": [[row[ca_i]]]})
     if fixes:
         try:
-            ws.batch_update(fixes, value_input_option="USER_ENTERED")
+            ws.batch_update(fixes)
         except Exception:
-            pass
+            # fall back to one update per cell if batch_update isn't supported
+            for f in fixes:
+                try:
+                    ws.update(values=f["values"], range_name=f["range"])
+                except Exception:
+                    pass
  
     out = []
     for row in values[1:]:
