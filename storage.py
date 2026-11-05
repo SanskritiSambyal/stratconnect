@@ -88,10 +88,36 @@ def list_contacts():
         return []
     header = values[0]
     idx = {name: i for i, name in enumerate(header)}
+    id_i = idx.get("_id", 0)
+    ca_i = idx.get("created_at")
  
     def cell(row, name):
         i = idx.get(name)
         return row[i].strip() if (i is not None and i < len(row)) else ""
+ 
+    # Backfill: rows typed directly into the sheet have no _id, so the app can't
+    # see them. Give any such row (that actually has content) an id + created_at,
+    # write it back once, so manual sheet entries start working.
+    now = int(time.time() * 1000)
+    fixes = []
+    for j in range(1, len(values)):
+        row = values[j]
+        cur_id = row[id_i].strip() if id_i < len(row) else ""
+        has_content = any((row[k].strip() if k < len(row) else "")
+                          for k in range(len(header)) if k != id_i)
+        if has_content and not cur_id:
+            while len(row) < len(header):
+                row.append("")
+            row[id_i] = uuid.uuid4().hex
+            fixes.append({"range": f"{_col_letter(id_i + 1)}{j + 1}", "values": [[row[id_i]]]})
+            if ca_i is not None and not row[ca_i].strip():
+                row[ca_i] = str(now)
+                fixes.append({"range": f"{_col_letter(ca_i + 1)}{j + 1}", "values": [[row[ca_i]]]})
+    if fixes:
+        try:
+            ws.batch_update(fixes, value_input_option="USER_ENTERED")
+        except Exception:
+            pass
  
     out = []
     for row in values[1:]:
@@ -215,4 +241,3 @@ def sheet_url():
         return _spreadsheet().url
     except Exception:
         return None
- 
